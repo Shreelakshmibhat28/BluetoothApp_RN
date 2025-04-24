@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Button, FlatList, StyleSheet, Platform, Alert, PermissionsAndroid } from 'react-native';
+import { View, Text, Button, ScrollView, StyleSheet, Platform, Alert, PermissionsAndroid } from 'react-native';
 import BluetoothClassic from 'react-native-bluetooth-classic';
 
 interface BluetoothDevice {
@@ -125,24 +125,23 @@ console.log('Platform.Version', Platform.Version)
         onPress={startScan}
         disabled={isScanning}
       />
-      <FlatList
-        data={devices}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.deviceItem}>
-            <Text style={styles.deviceName}>{item.name}</Text>
-            <Button
-              title="Connect"
-              onPress={() => connectToDevice(item.id)}
-            />
-          </View>
-        )}
-        ListEmptyComponent={
+      <ScrollView>
+        {devices.length > 0 ? (
+          devices.map((item) => (
+            <View key={item.id} style={styles.deviceItem}>
+              <Text style={styles.deviceName}>{item.name}</Text>
+              <Button
+                title="Connect"
+                onPress={() => connectToDevice(item.id)}
+              />
+            </View>
+          ))
+        ) : (
           <Text style={styles.emptyText}>
             {isScanning ? 'Searching for devices...' : 'No devices found'}
           </Text>
-        }
-      />
+        )}
+      </ScrollView>
     </View>
   );
 }
