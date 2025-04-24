@@ -1,45 +1,18 @@
-import { Image, StyleSheet, Platform , ScrollView} from 'react-native';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
-import BluetoothManager from '@/components/BluetoothManager';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import HomeScreen from './screens/HomeScreen';
+import BluetoothChat from './screens/ChatScreen';
+import { RootStackParamList } from './navigationTypes';
 
-export default function HomeScreen() {
+const Stack = createNativeStackNavigator<RootStackParamList>();
+
+export default function MainApp() {
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Image
-        source={require('@/assets/images/partial-react-logo.png')}
-        style={styles.reactLogo}
-      />
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Bluetooth Demo</ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.bluetoothContainer}>
-        <BluetoothManager />
-      </ThemedView>
-    </ScrollView>
+    
+      <Stack.Navigator initialRouteName="Home" screenOptions={{ headerShown: true }}>
+        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="BluetoothChat" component={BluetoothChat} />
+      </Stack.Navigator>
+    
   );
 }
-
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 20,
-  },
-  container: {
-    flex: 1,
-    padding: 16,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-
-  bluetoothContainer:{
-    flex: 1,
-  }
-});

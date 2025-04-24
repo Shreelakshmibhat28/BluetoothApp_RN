@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Button, ScrollView, StyleSheet, Platform, Alert, PermissionsAndroid } from 'react-native';
 import BluetoothClassic from 'react-native-bluetooth-classic';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '@/app/navigationTypes';
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
 interface BluetoothDevice {
   id: string;
@@ -8,6 +13,7 @@ interface BluetoothDevice {
 }
 
 export default function BluetoothManager() {
+  const navigation = useNavigation<NavigationProp>();
   const [isScanning, setIsScanning] = useState(false);
   const [devices, setDevices] = useState<BluetoothDevice[]>([]);
 
@@ -27,7 +33,7 @@ export default function BluetoothManager() {
           PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
           PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION,
         ]);
-  
+
         if (
           granted[PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN] !== PermissionsAndroid.RESULTS.GRANTED ||
           granted[PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT] !== PermissionsAndroid.RESULTS.GRANTED
@@ -46,51 +52,33 @@ export default function BluetoothManager() {
       const isBluetoothEnabled = await BluetoothClassic.isBluetoothEnabled();
       if (!isBluetoothEnabled) {
         Alert.alert('Bluetooth Disabled', 'Please enable Bluetooth to continue');
-        return;
-      }
-
-      const isBluetoothEnabledAgain = await BluetoothClassic.isBluetoothEnabled();
-      if (!isBluetoothEnabledAgain) {
-        Alert.alert('Bluetooth Disabled', 'Please enable Bluetooth manually in your device settings.');
       }
     } catch (error) {
       console.error('Error checking permissions:', error);
       Alert.alert('Error', 'Failed to initialize Bluetooth');
     }
   };
-console.log('Platform.Version', Platform.Version)
+
   const startScan = async () => {
     try {
-      console.log(await BluetoothClassic.isBluetoothAvailable())
       setIsScanning(true);
       setDevices([]);
-      // setTimeout(async () => {
-      //   await stopScan();
-      // }, 10000);
 
-      console.log('Scanning for devices...');
       const subscription = BluetoothClassic.onDeviceDiscovered((event: any) => {
         setDevices((prevDevices) => {
           const newDevice = {
             id: event.id || event.address,
             name: event.name || 'Unknown Device',
           };
-          
+
           if (!prevDevices.some((d) => d.id === newDevice.id)) {
             return [...prevDevices, newDevice];
           }
           return prevDevices;
         });
       });
-      await BluetoothClassic.startDiscovery().then(console.log)
 
-    
-
-   
-
-      return () => {
-        subscription.remove();
-      };
+      await BluetoothClassic.startDiscovery();
     } catch (error) {
       console.error('Error scanning:', error);
       Alert.alert('Error', 'Failed to scan for devices');
@@ -111,6 +99,7 @@ console.log('Platform.Version', Platform.Version)
     try {
       const device = await BluetoothClassic.connectToDevice(deviceId);
       Alert.alert('Success', `Connected to ${device.name || 'device'} successfully`);
+      navigation.navigate('BluetoothChat', { device });
     } catch (error) {
       console.error('Error connecting:', error);
       Alert.alert('Error', 'Failed to connect to device');
@@ -129,11 +118,11 @@ console.log('Platform.Version', Platform.Version)
         {devices.length > 0 ? (
           devices.map((item) => (
             <View key={item.id} style={styles.deviceItem}>
-              <Text style={styles.deviceName}>{item.name}</Text>
-              <Button
-                title="Connect"
-                onPress={() => connectToDevice(item.id)}
-              />
+              <View>
+                <Text style={styles.deviceName}>{item.name}</Text>
+                <Text style={styles.deviceMac}>{item.id}</Text>
+              </View>
+              <Button title="Connect" onPress={() => connectToDevice(item.id)} />
             </View>
           ))
         ) : (
@@ -167,6 +156,10 @@ const styles = StyleSheet.create({
   },
   deviceName: {
     fontSize: 16,
+  },
+  deviceMac: {
+    fontSize: 12,
+    color: '#666',
   },
   emptyText: {
     textAlign: 'center',
