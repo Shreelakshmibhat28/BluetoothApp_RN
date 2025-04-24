@@ -47,12 +47,17 @@ export default function BluetoothChat() {
         ))}
       </ScrollView>
       <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          value={input}
-          onChangeText={setInput}
-          placeholder="Type a message"
-        />
+      <TextInput
+  style={styles.input}
+  value={input}
+  onChangeText={(text) => {
+    // Prevent multiple \r\n from stacking up
+    const cleaned = text.replace(/\r\n$/, '');
+    setInput(cleaned + '\r\n');
+  }}
+  placeholder="Type a message"
+/>
+
         <Button title="Send" onPress={sendMessage} />
       </View>
     </KeyboardAvoidingView>
