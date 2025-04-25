@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, TextInput, Button, Text, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
-import BluetoothClassic from 'react-native-bluetooth-classic';
-import { useRoute } from '@react-navigation/native';
+import {  useRoute } from '@react-navigation/native';
 import { RootStackParamList } from '@/app/navigationTypes';
 import { RouteProp } from '@react-navigation/native';
 
 type BluetoothChatRouteProp = RouteProp<RootStackParamList, 'BluetoothChat'>;
+
 
 export default function BluetoothChat() {
   const route = useRoute<BluetoothChatRouteProp>();
@@ -14,6 +14,9 @@ export default function BluetoothChat() {
   const [messages, setMessages] = useState<string[]>([]);
   const [input, setInput] = useState('');
   const scrollRef = useRef<ScrollView>(null);
+
+  
+  
 
   useEffect(() => {
     const listen = device.onDataReceived((event: any) => {
@@ -29,7 +32,7 @@ export default function BluetoothChat() {
     if (input.trim().length === 0) return;
 
     try {
-      await device.write(input + '\n');
+      await device.write(input + '\r\n');
       setMessages((prev) => [...prev, `📤 ${input}`]);
       setInput('');
       scrollRef.current?.scrollToEnd({ animated: true });
@@ -37,6 +40,8 @@ export default function BluetoothChat() {
       console.error('Failed to send message', error);
     }
   };
+
+  
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
@@ -50,11 +55,7 @@ export default function BluetoothChat() {
       <TextInput
   style={styles.input}
   value={input}
-  onChangeText={(text) => {
-    // Prevent multiple \r\n from stacking up
-    const cleaned = text.replace(/\r\n$/, '');
-    setInput(cleaned + '\r\n');
-  }}
+  onChangeText={setInput}
   placeholder="Type a message"
 />
 
@@ -65,15 +66,34 @@ export default function BluetoothChat() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#fff' },
-  title: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
-  messages: { flex: 1, marginBottom: 12 },
-  messageText: { fontSize: 16, marginBottom: 6 },
+  container: {
+     flex: 1, 
+     padding: 16, 
+     backgroundColor: '#fff' 
+    },
+
+  title: { 
+    fontSize: 18, 
+    fontWeight: 'bold', 
+    marginBottom: 10 
+  },
+
+  messages: { 
+    flex: 1, 
+    marginBottom: 12 
+  },
+
+  messageText: { 
+    fontSize: 16, 
+    marginBottom: 6 
+  },
+
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
+  
   input: {
     flex: 1,
     borderWidth: 1,

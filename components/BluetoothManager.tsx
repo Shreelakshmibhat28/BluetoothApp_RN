@@ -64,19 +64,19 @@ export default function BluetoothManager() {
       setIsScanning(true);
       setDevices([]);
 
-      const subscription = BluetoothClassic.onDeviceDiscovered((event: any) => {
-        setDevices((prevDevices) => {
-          const newDevice = {
-            id: event.id || event.address,
-            name: event.name || 'Unknown Device',
-          };
+      // const subscription = BluetoothClassic.onDeviceDiscovered((event: any) => {
+      //   setDevices((prevDevices) => {
+      //     const newDevice = {
+      //       id: event.id || event.address,
+      //       name: event.name || 'Unknown Device',
+      //     };
 
-          if (!prevDevices.some((d) => d.id === newDevice.id)) {
-            return [...prevDevices, newDevice];
-          }
-          return prevDevices;
-        });
-      });
+      //     if (!prevDevices.some((d) => d.id === newDevice.id)) {
+      //       return [...prevDevices, newDevice];
+      //     }
+      //     return prevDevices;
+      //   });
+      // });
 
       await BluetoothClassic.startDiscovery();
     } catch (error) {
