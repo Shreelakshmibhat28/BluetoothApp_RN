@@ -1,16 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text,TouchableOpacity, Button, ScrollView, StyleSheet, Platform, Alert, PermissionsAndroid } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  StyleSheet,
+  Platform,
+  Alert,
+  PermissionsAndroid,
+} from 'react-native';
 import BluetoothClassic from 'react-native-bluetooth-classic';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/app/navigationTypes';
-import { Card } from 'react-native-paper';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Bluetooth'>;
 
 interface BluetoothDevice {
   id: string;
   name: string;
+  bonded: boolean;
 }
 
 export default function BluetoothManager() {
@@ -20,6 +29,8 @@ export default function BluetoothManager() {
 
   useEffect(() => {
     checkPermissions();
+    loadPairedDevices();
+
     return () => {
       stopScan();
     };
@@ -39,7 +50,7 @@ export default function BluetoothManager() {
           granted[PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN] !== PermissionsAndroid.RESULTS.GRANTED ||
           granted[PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT] !== PermissionsAndroid.RESULTS.GRANTED
         ) {
-          Alert.alert('Permission Denied', 'Bluetooth permissions are required to scan for devices.');
+          Alert.alert('Permission Denied', 'Bluetooth permissions are required.');
         }
       } catch (err) {
         console.warn(err);
@@ -56,26 +67,39 @@ export default function BluetoothManager() {
       }
     } catch (error) {
       console.error('Error checking permissions:', error);
-      Alert.alert('Error', 'Failed to initialize Bluetooth');
+    }
+  };
+
+  const loadPairedDevices = async () => {
+    try {
+      const bonded = await BluetoothClassic.getBondedDevices();
+      setDevices(bonded.map((d) => ({
+        id: d.address,
+        name: d.name,
+        bonded: true,
+      })));
+    } catch (error) {
+      console.error('Error loading bonded devices:', error);
     }
   };
 
   const startScan = async () => {
     try {
       setIsScanning(true);
-      setDevices([]);
+      setDevices([]); // clear old results
 
       const subscription = BluetoothClassic.onDeviceDiscovered((event: any) => {
-        setDevices((prevDevices) => {
-          const newDevice = {
-            id: event.id || event.address,
-            name: event.name || 'Unknown Device',
-          };
+        const newDevice = {
+          id: event.address,
+          name: event.name || 'Unknown Device',
+          bonded: event.bonded || false,
+        };
 
-          if (!prevDevices.some((d) => d.id === newDevice.id)) {
-            return [...prevDevices, newDevice];
+        setDevices((prev) => {
+          if (!prev.some((d) => d.id === newDevice.id)) {
+            return [...prev, newDevice];
           }
-          return prevDevices;
+          return prev;
         });
       });
 
@@ -83,16 +107,20 @@ export default function BluetoothManager() {
     } catch (error) {
       console.error('Error scanning:', error);
       Alert.alert('Error', 'Failed to scan for devices');
-      setIsScanning(false);
+    } finally {
+      setTimeout(() => {
+        stopScan();
+      }, 15000); // stop scan after 15s
     }
   };
 
   const stopScan = async () => {
     try {
       await BluetoothClassic.cancelDiscovery();
-      setIsScanning(false);
     } catch (error) {
       console.error('Error stopping scan:', error);
+    } finally {
+      setIsScanning(false);
     }
   };
 
@@ -100,22 +128,37 @@ export default function BluetoothManager() {
     try {
       const paired = await BluetoothClassic.pairDevice(deviceId);
       if (paired) {
-        Alert.alert('Success', `Paired with device ${deviceId} successfully`);
+        Alert.alert('Success', 'Device paired successfully');
+        loadPairedDevices(); // refresh paired list
       } else {
-        Alert.alert('Failed', `Pairing failed with device ${deviceId}`);
+        Alert.alert('Failed', 'Pairing failed or rejected.');
       }
     } catch (error) {
-      console.error('Error pairing:', error);
-      Alert.alert('Error', 'Failed to pair with device');
+      console.error('Pairing error:', error);
+      Alert.alert('Error', 'Could not pair with device');
     }
   };
-  
+
+  const unpairDevice = async (deviceId: string) => {
+    try {
+      const unpaired = await BluetoothClassic.unpairDevice(deviceId);
+      if (unpaired) {
+        Alert.alert('Unpaired', 'Device unpaired successfully');
+        loadPairedDevices();
+      } else {
+        Alert.alert('Failed', 'Unpairing failed');
+      }
+    } catch (error) {
+      console.error('Unpairing error:', error);
+    }
+  };
 
   const connectToDevice = async (deviceId: string) => {
     try {
-      const device = await BluetoothClassic.connectToDevice(deviceId);
+      const device = await BluetoothClassic.connectToDevice(deviceId, { delimiter: '\n' });
+      ;
       Alert.alert('Success', `Connected to ${device.name || 'device'} successfully`);
-      navigation.navigate('BluetoothChat', { device });
+      navigation.navigate('BluetoothChat', { device, deviceId });
     } catch (error) {
       console.error('Error connecting:', error);
       Alert.alert('Error', 'Failed to connect to device');
@@ -124,10 +167,7 @@ export default function BluetoothManager() {
 
   return (
     <View style={styles.container}>
-      
-  
-      <Text style={styles.listTitle}>List of Devices</Text>
-  
+      <Text style={styles.listTitle}>Bluetooth Devices</Text>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         {devices.length > 0 ? (
           devices.map((item) => (
@@ -136,47 +176,49 @@ export default function BluetoothManager() {
                 <Text style={styles.deviceName}>{item.name}</Text>
                 <Text style={styles.deviceMac}>{item.id}</Text>
               </View>
-              <TouchableOpacity
-                style={styles.pairButton}
-                onPress={() => pairDevice(item.id)}
-              >
-                <Text style={styles.pairButtonText}>Pair</Text>
-              </TouchableOpacity>
+              {!item.bonded ? (
+                <TouchableOpacity
+                  style={styles.pairButton}
+                  onPress={() => pairDevice(item.id)}
+                >
+                  <Text style={styles.pairButtonText}>Pair</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={styles.pairButton}
+                  onPress={() => unpairDevice(item.id)}
+                >
+                  <Text style={styles.pairButtonText}>Unpair</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
                 style={styles.checkbox}
                 onPress={() => connectToDevice(item.id)}
               />
             </View>
           ))
-          
         ) : (
           <Text style={styles.emptyText}>
-            {isScanning ? 'Searching for devices...' : 'No devices found'}
+            {isScanning ? 'Scanning...' : 'No devices found'}
           </Text>
         )}
       </ScrollView>
-  
-      {/* Bottom Search Button */}
+
       <TouchableOpacity
         style={styles.searchButton}
         onPress={startScan}
         disabled={isScanning}
       >
         <Text style={styles.searchButtonText}>
-          {isScanning ? 'Scanning...' : 'Bluetooth Search'}
+          {isScanning ? 'Scanning...' : 'Search Devices'}
         </Text>
       </TouchableOpacity>
     </View>
   );
-  
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
- 
+  container: { flex: 1, backgroundColor: '#fff' },
   listTitle: {
     fontSize: 18,
     fontWeight: 'bold',
@@ -184,10 +226,7 @@ const styles = StyleSheet.create({
     marginVertical: 12,
     color: '#4CAF50',
   },
-  scrollContainer: {
-    paddingHorizontal: 12,
-    paddingBottom: 80,
-  },
+  scrollContainer: { paddingHorizontal: 12, paddingBottom: 80 },
   deviceCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -195,36 +234,18 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 12,
     marginBottom: 12,
-    elevation: 2, // Android shadow
-    shadowColor: '#000', // iOS shadow
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
   },
-  deviceInfo: {
-    flex: 1,
-  },
-  deviceName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  deviceMac: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
-  },
+  deviceInfo: { flex: 1 },
+  deviceName: { fontSize: 16, fontWeight: 'bold' },
+  deviceMac: { fontSize: 12, color: '#666', marginTop: 4 },
   pairButton: {
     backgroundColor: '#4CAF50',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 25,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
     marginHorizontal: 10,
   },
-  pairButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
+  pairButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
   checkbox: {
     width: 24,
     height: 24,
