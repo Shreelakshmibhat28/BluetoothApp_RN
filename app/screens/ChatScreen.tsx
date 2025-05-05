@@ -3,6 +3,7 @@ import { View, TextInput, Button, Text, ScrollView, StyleSheet, KeyboardAvoiding
 import {  useRoute } from '@react-navigation/native';
 import { RootStackParamList } from '@/app/navigationTypes';
 import { RouteProp } from '@react-navigation/native';
+import type BluetoothClassic from 'react-native-bluetooth-classic';
 
 type BluetoothChatRouteProp = RouteProp<RootStackParamList, 'BluetoothChat'>;
 
